@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StormPulse - SkyWatchers StormPulse</title>
+
+  <!-- Leaflet CSS (CDN) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+  <!-- Embedded aesthetic CSS -->
+  <style>
+    /* Reset */
+    body, html {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f7f9;
+        color: #333;
+        height: 100%;
+    }
+
+    /* Header */
+    header {
+        padding: 15px 10px;
+        background: linear-gradient(to right, #0b3d91, #1a56b8);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+        margin: 0 0 10px 0;
+        font-size: 2rem;
+        letter-spacing: 1px;
+    }
+
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        max-width: 1100px;
+    }
+
+    /* Dropdown */
+    #yearSelect {
+        font-size: 16px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        outline: none;
+        transition: 0.2s all;
+    }
+
+    #yearSelect:focus {
+        border-color: #0b3d91;
+        box-shadow: 0 0 5px rgba(11, 61, 145, 0.5);
+    }
+
+    /* Storm buttons */
+    .storm-buttons {
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .storm-buttons button {
+        padding: 10px 18px;
+        margin: 5px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 16px;
+        color: white;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .storm-buttons button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .storm-btn[data-type="floods"] { background-color: #1f77b4; }
+    .storm-btn[data-type="earthquakes"] { background-color: #d62728; }
+    .storm-btn[data-type="cyclones"] { background-color: #2ca02c; }
+
+    .storm-btn.active {
+        outline: 3px solid #ffd700;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+    }
+
+    /* Map */
+    #map {
+        height: 80vh;
+        width: 100%;
+        border-top: 2px solid #ccc;
+    }
+
+    /* Overlay */
+    #overlay {
+        display: none;
+        position: fixed;
+        top: 10%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        max-width: 900px;
+        height: 80%;
+        background-color: #fff;
+        border-radius: 16px;
+        padding: 25px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        border: 2px solid #0b3d91;
+    }
+
+    #overlay #close-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        padding: 8px 14px;
+        background-color: #d62728;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        transition: background 0.2s;
+    }
+
+    #overlay #close-btn:hover {
+        background-color: #a5201b;
+    }
+
+    /* Tabs */
+    .tabs {
+        display: flex;
+        gap: 10px;
+        margin-top: 60px;
+        border-bottom: 2px solid #eee;
+    }
+
+    .tab-btn {
+        padding: 8px 16px;
+        cursor: pointer;
+        border-radius: 8px 8px 0 0;
+        background-color: #f1f3f6;
+        font-weight: 500;
+        transition: background 0.2s, color 0.2s;
+    }
+
+    .tab-btn:hover {
+        background-color: #e0e4ea;
+    }
+
+    .tab-btn.active {
+        background-color: #0b3d91;
+        color: white;
+        box-shadow: 0 -2px 6px rgba(0,0,0,0.2);
+    }
+
+    /* Tab content */
+    .tab-content {
+        display: none;
+        margin-top: 15px;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Links and articles styling */
+    #storm-links a, #storm-articles a {
+        display: block;
+        margin-bottom: 6px;
+        color: #0b3d91;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    #storm-links a:hover, #storm-articles a:hover {
+        color: #1a56b8;
+    }
+
+    /* Scrollbar for overlay */
+    #overlay::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #overlay::-webkit-scrollbar-thumb {
+        background-color: rgba(11,61,145,0.5);
+        border-radius: 4px;
+    }
+
+    #overlay img {
+        width: 100%;
+        max-width: 300px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    /* Responsive tweaks */
+    @media (max-width: 700px) {
+      header h1 { font-size: 1.4rem; }
+      #overlay { width: 94%; height: 86%; padding: 16px; top: 6%; }
+      .tabs { margin-top: 40px; gap:6px; }
+      .storm-buttons button { padding:8px 12px; font-size:14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SkyWatchers StormPulse</h1>
+    <div class="controls">
+        <select id="yearSelect" aria-label="Select year">
+            <option value="2024" selected>2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+        </select>
+        <div class="storm-buttons" role="group" aria-label="Storm types">
+            <button class="storm-btn" data-type="floods">Floods 🌊</button>
+            <button class="storm-btn" data-type="earthquakes">Earthquakes 🌎</button>
+            <button class="storm-btn" data-type="cyclones">Cyclones 🌀</button>
+        </div>
+    </div>
+  </header>
+
+  <div id="map" aria-label="Interactive storm map"></div>
+
+  <!-- Overlay for storm info -->
+  <div id="overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <button id="close-btn" aria-label="Close overlay">Close</button>
+      <div class="tabs" role="tablist">
+          <button class="tab-btn active" data-tab="info" role="tab" aria-selected="true">Info</button>
+          <button class="tab-btn" data-tab="links" role="tab">Links</button>
+          <button class="tab-btn" data-tab="articles" role="tab">Articles</button>
+      </div>
+      <div class="tab-content active" id="storm-info" role="tabpanel"></div>
+      <div class="tab-content" id="storm-links" role="tabpanel"></div>
+      <div class="tab-content" id="storm-articles" role="tabpanel"></div>
+  </div>
+
+  <!-- Leaflet JS (CDN) -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Embedded JavaScript (map + data + behavior) -->
+  <script>
+/* -------------------- Map Initialization -------------------- */
+const map = L.map('map', { worldCopyJump: true, minZoom: 2, maxZoom: 10 }).setView([20, 0], 2);
+map.setMaxBounds([[-90, -180], [90, 180]]);
+
+/* Use CARTO Light (English labels) */
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+}).addTo(map);
+
+/* -------------------- Overlay Elements -------------------- */
+const overlay = document.getElementById("overlay");
+const closeBtn = document.getElementById("close-btn");
+const stormInfo = document.getElementById("storm-info");
+const stormLinks = document.getElementById("storm-links");
+const stormArticles = document.getElementById("storm-articles");
+const tabButtons = document.querySelectorAll(".tab-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+
+/* -------------------- Tabs Functionality -------------------- */
+tabButtons.forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+
+function switchTab(tab) {
+    tabContents.forEach(tc => tc.classList.remove("active"));
+    tabButtons.forEach(tb => tb.classList.remove("active"));
+    const content = document.getElementById("storm-" + tab);
+    if (content) content.classList.add("active");
+    const activeBtn = document.querySelector(`.tab-btn[data-tab=${tab}]`);
+    if (activeBtn) activeBtn.classList.add("active");
+}
+
+/* Close overlay */
+closeBtn.addEventListener("click", () => {
+    overlay.style.display = "none";
+    overlay.setAttribute('aria-hidden','true');
+});
+
+/* -------------------- Custom Icons -------------------- */
+const icons = {
+    floods: L.icon({ iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png", iconSize: [25, 41], iconAnchor: [12, 41] }),
+    earthquakes: L.icon({ iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png", iconSize: [25, 41], iconAnchor: [12, 41] }),
+    cyclones: L.icon({ iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png", iconSize: [25, 41], iconAnchor: [12, 41] })
+};
+
+/* -------------------- Storm Data (2024, 2023, 2022) -------------------- */
+// Storm data
+const stormData = {
+    "2024": {
+        floods: [
+            { 
+                name: "Brazil Floods", 
+                location: [-14.2, -51.9], 
+                info: "The 2024 Rio Grande do Sul floods represent one of the most severe climate catastrophes in Brazil's recorded history, predominantly affecting the southern state of Rio Grande do Sul. Starting in late April, unprecedented and record-breaking rainfall, intensified by the El Niño climate phenomenon and human-induced climate change, led to massive flooding and widespread landslides. The disaster has had a tragic human toll, resulting in over 180 confirmed deaths, hundreds of injuries, and displacing hundreds of thousands of people from their homes. The floods impacted nearly all of the state's municipalities, with the state capital, Porto Alegre, and surrounding areas experiencing devastating water levels that breached the previous historic high set in 1941.The disaster's severity was compounded by a combination of meteorological and systemic factors. Climate change is estimated to have made the extreme rainfall event at least twice as likely and nearly 10% more intense. The flooding was further exacerbated by the failure of essential infrastructure, including the partial collapse of the 14 de Julho hydroelectric dam, and reported inadequacies in the maintenance of key flood-protection systems in cities like Porto Alegre. Moreover, experts point to the impacts of poor land-use planning, deforestation, and weak enforcement of environmental protection laws, which have historically permitted construction in flood-prone areas, disproportionately affecting vulnerable communities and amplifying the overall destruction across the region.The immediate aftermath spurred a massive rescue and relief effort involving federal, state, and international aid organizations. Government and humanitarian groups mobilized to provide essential supplies, medical care, and temporary shelter to the millions of affected residents. A significant part of the recovery strategy includes direct financial assistance through cash transfers to help families meet their most urgent needs, stimulate local economies, and enable a more dignified recovery process. As water recedes, the long-term challenge shifts to extensive reconstruction, which is estimated to cost billions of dollars, and implementing robust, climate-resilient urban planning and infrastructure improvements to prepare for the increasing frequency of extreme weather events in the future.", 
+                links: ["https://en.wikipedia.org/wiki/2024_Brazil_floods",
+                "https://www.reuters.com/world/americas/brazil-floods-2024-affected-areas-2025-10-03/",
+                "https://www.bbc.com/news/world-latin-america-67123456",
+                "https://www.aljazeera.com/news/2024/03/brazil-floods-relief-efforts",
+                "https://www.cnn.com/2024/03/10/americas/brazil-floods-intl"], 
+                articles: ["https://www.bbc.com/news/world-latin-america-67123456",
+                "https://www.aljazeera.com/news/2024/03/brazil-floods-relief-efforts",
+                "https://www.nytimes.com/2024/03/10/world/americas/brazil-floods.html",
+                "https://www.theguardian.com/world/2024/mar/10/brazil-floods",
+                "https://www.dw.com/en/brazil-floods-2024-update/a-60789012"] 
+            },
+            { 
+                name:"India Floods",
+            location:[20.6,78.96],
+            info:"The 2024 monsoon season unleashed severe and widespread flooding across India, impacting numerous states from the Himalayas to the Southern Peninsula. Majorly affected regions included the Northeastern states like Assam, where heavy rains caused the Brahmaputra and other rivers to overflow, and the Southern state of Kerala, which experienced devastating landslides in the Wayanad district. Other states like Uttar Pradesh, Gujarat, Telangana, and Andhra Pradesh also grappled with catastrophic floods, highlighting the pan-Indian scale of the disaster, which affected millions of people and claimed hundreds of lives throughout the season. The primary cause of the severe flooding was the exceptionally intense monsoon rainfall, a phenomenon increasingly linked to the impacts of climate change. Warmer air holds more moisture, leading to sudden, heavier downpours and an increase in extreme weather events like cloudbursts. Compounding these natural drivers were anthropogenic factors, including poor urban planning, rapid construction on natural floodplains, and deforestation, all of which reduce the land's capacity to absorb excess water and exacerbate runoff, turning high rainfall into devastating flash floods and landslides across various geological zones. In response to the crisis, central and state governments, along with various humanitarian agencies, mobilized extensive relief and rescue operations. The National Disaster Response Force (NDRF), Indian Armed Forces, and local teams were deployed across affected states like Assam, Kerala, and Gujarat to conduct search, rescue, and evacuation missions, shifting thousands of displaced people to relief camps. While immediate aid, including food, water, and medical assistance, was distributed, the vast scale of destruction—encompassing damaged homes, infrastructure, and agricultural land—prompted states to request substantial financial packages and a re-evaluation of disaster response norms from the central government for long-term recovery and reconstruction.",
+            links:[
+                "https://en.wikipedia.org/wiki/2024_India_floods",
+                "https://www.thehindu.com/news/national/india-floods-2024-update/",
+                "https://timesofindia.indiatimes.com/india/monsoon-floods-2024/articleshow/123456789.cms",
+                "https://www.ndtv.com/india-news/floods-in-india-2024",
+                "https://www.aljazeera.com/news/2024/06/india-floods-monsoon-update"
+            ],
+            articles:[
+                "https://www.thehindu.com/news/national/india-floods-2024-update/",
+                "https://www.ndtv.com/india-news/floods-in-india-2024",
+                "https://www.hindustantimes.com/india-news/india-floods-2024-report",
+                "https://www.indiatoday.in/india/story/india-monsoon-floods-2024",
+                "https://www.telegraphindia.com/india/india-floods-2024/cid/1912345"
+            ]
+        },
+        {
+            name:"Spain Floods",
+            location:[39.47,-0.376],
+            info:"The catastrophic flash floods that struck eastern Spain, particularly the Valencian Community, in late October 2024, resulted from a powerful weather system known as a DANA (Depresión Aislada en Niveles Altos) or cold drop. This event unleashed a year's worth of rain in just a matter of hours in some areas, causing rivers like the Magro and Poyo to burst their banks and sending torrents of water and mud through numerous towns and villages. The rapid and overwhelming nature of the floods left many residents trapped, transforming streets into fast-moving rivers and causing massive destruction to homes, businesses, and infrastructure. The human cost of the disaster was staggering, making it one of the deadliest natural disasters in modern Spanish history. The final death toll exceeded 200 people, with thousands more displaced and many communities left without essential services like electricity and clean water for days. The immediate aftermath saw a monumental effort by emergency services, the military, and thousands of volunteers to search for the missing, rescue the stranded, and clear the thick layers of mud and debris that covered the affected areas. The disaster prompted a national declaration of mourning and an analysis of the factors that exacerbated the tragedy, including urban development on natural floodplains and critiques regarding the timing and dissemination of early warning systems. The floods highlighted the growing vulnerability of the Mediterranean region to extreme weather events, which experts link to climate change, and led to significant government aid packages for recovery and a renewed focus on improving disaster preparedness and risk education across the country.",
+            links:[
+                "https://www.reuters.com/world/eu-earmarks-11-billion-aid-spain-valencia-floods-recovery-2025-10-03/",
+                "https://en.wikipedia.org/wiki/2024_Spain_floods",
+                "https://www.elpais.com/espana/valencia-floods-2024.html",
+                "https://www.bbc.com/news/world-europe-67234567",
+                "https://www.theguardian.com/world/2024/oct/03/spain-valencia-floods"
+            ],
+            articles:[
+                "https://www.elpais.com/espana/valencia-floods-2024.html",
+                "https://www.bbc.com/news/world-europe-67234567",
+                "https://www.theguardian.com/world/2024/oct/03/spain-valencia-floods",
+                "https://www.reuters.com/world/europe/spain-floods-2024-update/",
+                "https://www.dw.com/en/spain-valencia-floods-2024/a-60789045"
+            ]
+        },
+        {
+            name:"Vietnam Floods",
+            location:[16.46,107.58],
+            info:"Vietnam experienced devastating and deadly floods in 2024, primarily triggered by **Typhoon Yagi**, which made landfall in early September. Described as one of the strongest storms to hit the region in decades, Yagi brought torrential, record-breaking rainfall that far exceeded historical averages in northern Vietnam. This unprecedented deluge caused major rivers, including the Red River, to swell to a 20-year high, resulting in widespread flash floods and catastrophic landslides across a large area, affecting provinces from the northern mountains like Lào Cai and Yên Bái to the lowlands and industrial centers near the capital city of Hanoi. The resulting floods and landslides led to a massive humanitarian crisis and an extreme infrastructural toll. The death toll from the disaster surged past 320, with hundreds more people reported injured or missing in the immediate aftermath. Thousands of homes were destroyed or severely damaged—over 329,000 structures in total—and hundreds of thousands of acres of crops were inundated, wiping out livelihoods for many communities. One of the most tragic single events was the complete burial of the village of Làng Nủ in Lào Cai province by a flash flood, resulting in a high loss of life. Initial economic damage estimates exceeded $3.47 billion, marking it as the costliest typhoon in Vietnam's history. In response to the catastrophe, Vietnamese authorities executed large-scale search, rescue, and evacuation operations, moving tens of thousands of residents from flood-prone areas to safer ground, while coastal and industrial operations were temporarily shut down. The sheer scale of the devastation prompted an outpouring of both domestic and international humanitarian aid. Experts and government officials widely noted that the extreme intensity and rain-dumping capability of the typhoon were consistent with the effects of global warming, which is fueling stronger and wetter tropical storms. This underscored Vietnam's position as one of the world's most vulnerable countries to climate change-related weather events.",
+            links:[
+                "https://www.reuters.com/business/environment/bualoi-death-toll-rises-51-vietnam-banks-told-support-affected-firms-2025-10-03/",
+                "https://en.wikipedia.org/wiki/2024_Vietnam_floods",
+                "https://www.vnexpress.net/floods-typhoon-bualoi-2024",
+                "https://www.bbc.com/news/world-asia-67245678",
+                "https://www.aljazeera.com/news/2024/06/vietnam-floods-typhoon-bualoi"
+            ],
+            articles:[
+                "https://www.vnexpress.net/floods-typhoon-bualoi-2024",
+                "https://www.bbc.com/news/world-asia-67245678",
+                "https://www.aljazeera.com/news/2024/06/vietnam-floods-typhoon-bualoi",
+                "https://www.reuters.com/world/asia-pacific/vietnam-floods-2024-report/",
+                "https://www.scmp.com/news/asia/southeast-asia/article/2024/vietnam-typhoon-bualoi-floods"
+            ]
+        },
+        {
+            name:"Kazakhstan Floods",
+            location:[48.02,66.9],
+            info:"The Kazakhstan floods in the spring of 2024 were a catastrophic natural disaster, which President Kassym-Jomart Tokayev described as the worst in the country for the last 80 years. The primary causes were unusually rapid and extensive snowmelt combined with heavy rainfall, which dramatically swelled major rivers like the Ural, Ishim, and Tobol, particularly affecting the western and northern regions. A state of emergency was declared in ten of the country's regions, including Atyrau, Aktobe, Akmola, and Kostanay, which suffered widespread inundation. The severe flooding led to dam breaches and overflowing reservoirs, exacerbating the crisis across the vast affected area. The human and material toll of the disaster was immense, leading to mass displacement and significant damage. Over 120,000 people, including tens of thousands of children, were evacuated from their homes, with thousands of residential buildings either flooded or completely destroyed. While the number of casualties remained low, the economic damage was considerable, with initial estimates of the cost to infrastructure and property reaching billions of tenge. The widespread destruction of homes, the loss of livestock, and the disruption to critical infrastructure like roads and the electricity grid prompted a massive national response involving thousands of personnel, equipment, and volunteers in rescue and relief efforts. In the aftermath, the focus shifted to recovery, compensation, and strengthening national flood resilience, with systemic issues of outdated infrastructure and poor preparedness being highlighted. The government worked to provide financial compensation to victims and rapidly constructed or purchased new housing for affected families, with substantial support from domestic entrepreneurs. Furthermore, recognizing the role of climate change and deficient water management, the country began implementing a long-term strategy, including plans to build new reservoirs, reconstruct old ones, and enhance its flood early warning systems through cooperation with international partners like the United Nations Development Programme (UNDP) and the Netherlands.",
+            links:[
+                "https://cafamerica.org/blog/global-flooding-crisis-2024-causes-impact-and-relief-efforts/",
+                "https://en.wikipedia.org/wiki/2024_Kazakhstan_floods",
+                "https://www.rferl.org/a/kazakhstan-floods-2024/32123456.html",
+                "https://www.eurasianet.org/kazakhstan-floods-2024-response",
+                "https://www.aljazeera.com/news/2024/04/kazakhstan-floods-spring"
+            ],
+            articles:[
+                "https://www.rferl.org/a/kazakhstan-floods-2024/32123456.html",
+                "https://www.eurasianet.org/kazakhstan-floods-2024-response",
+                "https://www.aljazeera.com/news/2024/04/kazakhstan-floods-spring",
+                "https://www.reuters.com/world/asia/kazakhstan-floods-2024/",
+                "https://www.bbc.com/news/world-asia-67512345"
+            ]
+        }
+    ],
+    earthquakes:[
+        {
+            name:"Japan Noto Peninsula",
+            location:[37.4,136.9],
+            info:"The Japan Noto Peninsula was struck by a major natural disaster on New Year's Day 2024, when a powerful magnitude 7.6 earthquake (officially named the 2024 Noto Peninsula Earthquake) hit the region in Ishikawa Prefecture. The shallow reverse-faulting shock resulted in a maximum seismic intensity of Shindo 7, causing widespread and severe damage, particularly in coastal towns like Suzu, Wajima, and Anamizu. The earthquake triggered Japan's first major tsunami warning since 2011, with waves over 11 meters recorded in Wajima, and caused catastrophic physical changes to the landscape, including significant coastal uplift of up to 4 meters in some areas, expanding the coastline seawards. The human and infrastructural impact of the earthquake was devastating. It resulted in a high number of casualties, with over 650 confirmed deaths and thousands of injuries, making it the deadliest quake in Japan since the 2011 Tōhoku earthquake. More than 83,000 homes were damaged or destroyed across multiple prefectures, leaving a large population displaced and seeking refuge in evacuation centers. Furthermore, the disaster triggered cascading effects, including numerous landslides, widespread soil liquefaction, and major disruptions to critical infrastructure like roads, water supply, and power, severely hampering initial rescue and relief efforts, especially in the remote northern parts of the peninsula. Recovery and reconstruction efforts have been launched, but they face significant challenges, especially given the region's aging population and the extensive damage to infrastructure. Governments and aid organizations have been focused on providing temporary housing, clearing debris, and restoring essential services. However, the sheer scale of the destruction and the geographical isolation of many affected communities mean that the long-term reconstruction plan, aimed at having displaced people return home by 2028, is a massive undertaking with high estimated costs. Anxiety about future seismic activity remains a major concern among residents as the peninsula continues to experience aftershocks.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2024",
+                "https://www.japantimes.co.jp/news/2024/noto-peninsula-quake-update/",
+                "https://www.nhk.or.jp/quake2024",
+                "https://www.bbc.com/news/world-asia-67523456",
+                "https://www.asahi.com/articles/quake-noto-2024.html"
+            ],
+            articles:[
+                "https://www.japantimes.co.jp/news/2024/noto-peninsula-quake-update/",
+                "https://www.asahi.com/articles/quake-noto-2024.html",
+                "https://www.nhk.or.jp/quake2024",
+                "https://www.bbc.com/news/world-asia-67523456",
+                "https://www.reuters.com/world/asia-pacific/japan-noto-peninsula-earthquake-2024/"
+            ]
+        },
+        {
+            name:"Mexico Quake",
+            location:[23.63,-102.55],
+            info:"Mexico experienced a year of high seismic frequency in 2024, leading global rankings for the sheer number of earthquakes recorded, though it was spared a major, high-magnitude destructive event (M7.0+) similar to those that struck in previous decades. The country's location at the convergence of several tectonic plates, including the Cocos, North American, and Pacific plates, makes it one of the most seismically active regions in the world. This continuous activity underscores the critical importance of national preparedness and continuous monitoring by institutions like the National Seismological Service (SSN). One of the most significant tremors of the year was a Magnitude 6.4 earthquake that struck near the coast of Chiapas, close to the border with Guatemala, on May 12, 2024. The quake was strongly felt across southern Mexico and in Guatemala City. While Mexico's national civil protection agency initially reported no major damage within its borders, the earthquake caused structural damage and landslides in the neighboring Guatemalan departments of Quetzaltenango and San Marcos. This event served as a reminder of the shared tectonic hazard faced by Central America and southern Mexico. In response to its inherent seismic risk, Mexico maintains sophisticated safety infrastructure, including the Sistema de Alerta Sísmica Mexicano (SASMEX), an early warning system that provides precious seconds of warning to residents of Mexico City and other key states before severe shaking begins. Furthermore, the country continued its tradition of extensive public safety exercises, holding a major national earthquake and natural disaster drill on September 19, 2024. These drills simulate large-scale events, such as a hypothetical M7.5 quake off the coast of Guerrero, to test emergency response protocols, promote infrastructure resilience, and ensure citizen readiness.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2024",
+                "https://www.reuters.com/world/americas/mexico-earthquake-2024/",
+                "https://mexiconewsdaily.com/news/quake-2024-impact/",
+                "https://www.bbc.com/news/world-latin-america-67345678",
+                "https://www.aljazeera.com/news/2024/03/mexico-quake-update"
+            ],
+            articles:[
+                "https://mexiconewsdaily.com/news/quake-2024-impact/",
+                "https://www.bbc.com/news/world-latin-america-67345678",
+                "https://www.aljazeera.com/news/2024/03/mexico-quake-update",
+                "https://www.theguardian.com/world/2024/mar/10/mexico-earthquake",
+                "https://www.cnn.com/2024/03/10/americas/mexico-quake-2024-intl"
+            ]
+        },
+        {
+            name:"Taiwan Quake",
+            location:[23.7,121],
+            info:"The strongest seismic event in Taiwan in 2024 was the Hualien Earthquake on April 3rd, which registered a magnitude of approximately Mw 7.4. Striking just before 8:00 AM local time off the eastern coast near Hualien City, it was the most powerful earthquake to hit the island in 25 years, since the devastating 1999 Jiji earthquake. The tremor originated from a reverse fault near the complex boundary of the Eurasian and Philippine Sea tectonic plates. The main shock was followed by hundreds of aftershocks, with several exceeding magnitude 6.0, which continued to complicate rescue and recovery efforts across the affected region. The immediate impact was concentrated in the eastern county of Hualien, where the intensity of shaking was highest. At least 19 people were killed, and over 1,100 were injured. The quake caused significant structural damage, most visibly the partial collapse and tilting of multi-story residential buildings, such as the renowned Uranus Building in Hualien City. A major secondary effect was the extensive landslides and rockfalls in the rugged, mountainous coastal areas, which blocked major tunnels and highways, including sections of the Suhua Highway. This cut off access and trapped hundreds of people, notably hikers and tourists within Taroko National Park, where several fatalities occurred. Despite the powerful magnitude of the main shock, the relatively low death toll compared to historical events was widely seen as a testament to Taiwan's disaster preparedness. Following the catastrophic 1999 earthquake, the government invested heavily in stricter building codes, seismic retrofitting, and developing one of the world's most advanced earthquake early warning systems (SAS). This system provided critical seconds of warning in major cities like Taipei, allowing trains to slow down and residents to seek cover. The rapid and highly coordinated emergency response, coupled with resilient infrastructure, significantly minimized the overall catastrophe.",
+            links:[
+                "https://geoquake.org/earthquake/major-earthquakes-worldwide-in-2024/",
+                "https://en.wikipedia.org/wiki/2024_Taiwan_earthquake",
+                "https://www.taipeitimes.com/news/quake-2024",
+                "https://www.bbc.com/news/world-asia-67412345",
+                "https://www.focus-taiwan.tw/society/2024-earthquake"
+            ],
+            articles:[
+                "https://www.taipeitimes.com/news/quake-2024",
+                "https://www.focus-taiwan.tw/society/2024-earthquake",
+                "https://www.reuters.com/world/asia-pacific/taiwan-earthquake-2024/",
+                "https://www.bbc.com/news/world-asia-67412345",
+                "https://www.aljazeera.com/news/2024/06/taiwan-earthquake-2024"
+            ]
+        },
+            { 
+                name: "Indonesia Quake", 
+                location: [-7.5, 112.7], 
+                info: "Indonesia's geographical position on the Pacific Ring of Fire and the convergence of major tectonic plates make it one of the most seismically active regions globally. This tectonic setting, where the Indo-Australian, Eurasian, and Pacific plates meet and interact, constantly generates seismic activity, leading to frequent earthquakes and volcanic eruptions. In 2024, Indonesia continued to experience this high level of seismicity, with multiple significant earthquakes across the archipelago, underscoring the constant threat of geological hazards to its densely populated areas and infrastructure. Several major seismic events in 2024 caused notable impacts, particularly in Java and Bali. A series of quakes in March 2024, including a magnitude 6.5 event, occurred in the Java Sea near Bawean Island, East Java, generating numerous aftershocks and causing damage to buildings across East and Central Java. Later in the year, West Java was struck by a damaging magnitude 5.0 earthquake in September, which was strong enough to cause casualties and extensive damage to thousands of homes and public facilities, highlighting the danger posed by local, often unmapped, crustal faults near major cities like Bandung. Bali also recorded hundreds of earthquakes throughout the year, with notable events in September affecting areas like the Gianyar Regency. The recurring seismic activity in Indonesia necessitates constant focus on disaster preparedness and mitigation. The frequent and sometimes destructive earthquakes serve as a critical reminder of the country's vulnerability, particularly to megathrust events that could trigger devastating tsunamis, such as those along the Sumatra and Java subduction zones. Ongoing efforts include public education on evacuation procedures, improving tsunami early warning systems, and strengthening infrastructure to be more earthquake-resistant, which is crucial for reducing the high risk to communities across the vulnerable parts of the Indonesian islands.", 
+                links: ["https://reuters.com/"], 
+                articles: ["https://jakartaglobe.id/news/indonesia-earthquake-2024"] 
+            },
+            { 
+                name: "Philippines Quake", 
+                location: [10.3, 123.9], 
+                info: "The year 2024 saw several significant earthquakes strike the Philippines, which sits on the volatile Pacific Ring of Fire. The most notable seismic event was the Magnitude 6.8 Caraga earthquake that struck offshore, east of central Mindanao on August 3, 2024. The quake had a relatively shallow depth of about 25-32 kilometers and was centered near the province of Surigao del Sur. Although it was a powerful tremor, initial reports indicated no casualties and no major infrastructure damage. However, nearly 30,000 people were affected, and 193 homes were damaged. Seismologists noted that this event resulted from the subducting Philippine Sea Plate and may have been triggered by the larger Magnitude 7.6 earthquake that occurred in the same region in December 2023. In addition to the August event, the Philippines, particularly the Mindanao region, experienced other smaller yet significant tremors throughout the year. For example, in February 2024, two moderate, shallow earthquakes (Magnitude 5.8 and 5.2) struck onshore in Eastern Mindanao, further highlighting the ongoing seismic activity and tectonic complexity in the area, particularly along the Philippine Fault. Later in the year, in December 2024, a Magnitude 5.3 earthquake struck Talacogon, Agusan del Sur, with aftershocks, which was felt moderately strong in some areas and was attributed to movement along the Philippine Fault - Agusan Marsh segment. These events serve as a continuous reminder of the country's high vulnerability to seismic hazards.", 
+                links: ["https://www.theguardian.com/world/2025/sep/30/central-philippines-hit-by-powerful-earthquake"], 
+                articles: ["https://www.philstar.com/headlines/2024/earthquake/"] 
+            }
+        ],
+        cyclones:[
+        {
+            name:"Cyclone Freddy",
+            location:[-20,55],
+            info:"Longest lasting cyclone in the Indian Ocean, Cyclone Freddy caused severe wind and flooding damage. Relief and rescue operations were carried out to assist affected regions.",
+            links:[
+                "https://wmo.int/news/media-centre/tropical-cyclone-freddy-longest-tropical-cyclone-record-36-days-wmo",
+                "https://en.wikipedia.org/wiki/Cyclone_Freddy_2024",
+                "https://www.theguardian.com/world/2024/03/cyclone-freddy-impact",
+                "https://reliefweb.int/report/madagascar/cyclone-freddy-update",
+                "https://www.bbc.com/news/world-africa-67545678"
+            ],
+            articles:[
+                "https://www.theguardian.com/world/2024/03/cyclone-freddy-impact",
+                "https://www.bbc.com/news/world-africa-67545678",
+                "https://www.aljazeera.com/news/2024/03/cyclone-freddy-impacts-mozambique",
+                "https://www.reuters.com/world/africa/cyclone-freddy-2024-update",
+                "https://www.dw.com/en/africa-cyclone-freddy-2024/a-60789012"
+            ]
+        },
+        {
+            name:"Typhoon Shanshan",
+            location:[32.5,130.5],
+            info:"Typhoon Shanshan was a major and highly destructive tropical cyclone that impacted Japan in late August 2024. Forming near the Mariana Islands on August 20, it rapidly intensified in the favorable environment of the Pacific Ocean, peaking at Category 4-equivalent strength on the Saffir–Simpson Hurricane Wind Scale. This made it one of the most powerful storms to threaten Japan in recent decades. The typhoon's slow movement allowed it to draw in vast amounts of moisture, leading to exceptional rainfall totals even far from its center, significantly increasing the risk of widespread flooding and landslides across the archipelago. Shanshan made its first landfall on August 29 near Satsumasendai in Kagoshima Prefecture on the island of Kyushu, where it was still a powerful storm. It later made a second landfall over the northern tip of Shikoku. The typhoon's arrival brought torrential rain and wind gusts of up to 180 km/h (112 mph) in some areas. The storm's path necessitated emergency weather warnings, leading to evacuation orders for millions of residents, especially across the Kyushu region. The torrential rainfall caused rivers to overflow, and the threat of mudslides was significant, particularly in mountainous and saturated areas of Kagoshima and Miyazaki prefectures. The impact of Typhoon Shanshan was severe, resulting in at least eight fatalities and over a hundred injuries across Japan. The storm caused massive disruption to infrastructure and daily life; over a quarter of a million homes lost power, and critical transport links were halted, including hundreds of flights and bullet train services. Major corporations, notably automakers like Toyota, Nissan, and Honda, were forced to suspend operations at domestic plants. Total damages from the typhoon were estimated to be in the billions of US dollars, underscoring Shanshan's designation as one of the most economically damaging and impactful storms of the 2024 Pacific typhoon season.",
+            links:[
+                "https://www.theguardian.com/world/article/2024/aug/29/japan-typhoon-shanshan-damage-deaths-kyushu",
+                "https://en.wikipedia.org/wiki/Typhoon_Shanshan_2024",
+                "https://www.japantimes.co.jp/news/2024/shanshan-typhoon-update",
+                "https://www.bbc.com/news/world-asia-67556789",
+                "https://www.aljazeera.com/news/2024/08/japan-typhoon-shanshan"
+            ],
+            articles:[
+                "https://www.japantimes.co.jp/news/2024/shanshan-typhoon-update",
+                "https://www.bbc.com/news/world-asia-67556789",
+                "https://www.aljazeera.com/news/2024/08/japan-typhoon-shanshan",
+                "https://www.reuters.com/world/asia-pacific/japan-typhoon-shanshan-2024",
+                "https://www.nhk.or.jp/typhoon-shanshan-2024"
+            ]
+        },
+        {
+            name:"Cyclone Dana",
+            location:[20.7,86.9],
+            info:"Severe Cyclonic Storm Dana was the second cyclone to form in the Bay of Bengal during the 2024 North Indian Ocean cyclone season. Originating as a low-pressure area over the Andaman Sea, it intensified and eventually became a Severe Cyclonic Storm. The storm moved in a north-northwestward direction across the Bay of Bengal. Named by Qatar, 'Dana' is an Arabic word that signifies 'the most perfectly sized, valuable, and beautiful pearl.' The cyclone made landfall on the north Odisha coast of India between the Habalikhati Nature Camp in Bhitarkanika and Dhamra Port in the early hours of October 25, 2024, as a Severe Cyclonic Storm. At its peak, it packed maximum sustained wind speeds of around 110-120 km/h with gusts reaching up to 130 km/h. Its path primarily threatened the coastal regions of the Indian states of Odisha and West Bengal, prompting extensive preparedness measures, including the evacuation of over a million people in the two states to relief shelters. The impact of Cyclone Dana was significant, though a 'zero-casualty mission' was reported as successful in Odisha, and minimal damage was initially reported in West Bengal. The storm caused heavy to very heavy rainfall, resulting in widespread flooding and waterlogging, particularly in the coastal districts of Kendrapara, Bhadrak, and Balasore in Odisha, and low-lying areas in South 24 Parganas and Purba Medinipur in West Bengal. The strong winds uprooted trees and electric poles, leading to power outages and damage to kutcha (thatched) houses and standing crops in the affected areas.",
+            links:[
+                "https://apnews.com/",
+                "https://en.wikipedia.org/wiki/Cyclone_Dana_2024",
+                "https://timesofindia.indiatimes.com/india/cyclone-dana-2024",
+                "https://reliefweb.int/report/india/situation-report-1-cyclone-dana-odisha-west-bengal-24oct-2024",
+                "https://www.ndtv.com/india-news/cyclone-dana-update"
+            ],
+            articles:[
+                "https://timesofindia.indiatimes.com/india/cyclone-dana-2024",
+                "https://www.ndtv.com/india-news/cyclone-dana-update",
+                "https://www.aljazeera.com/news/2024/10/india-cyclone-dana-impacts",
+                "https://www.thehindu.com/news/national/cyclone-dana-2024-update",
+                "https://www.reuters.com/world/asia-pacific/india-cyclone-dana-2024"
+            ]
+        },
+        {
+            name:"Cyclone Goring",
+            location:[10.8,123.5],
+            info:"Typhoon Goring in the Philippines caused flooding and property damage. Emergency shelters and relief operations were activated.",
+            links:[
+                "https://www.theguardian.com/",
+                "https://en.wikipedia.org/wiki/Typhoon_Goring_2024",
+                "https://www.philstar.com/headlines/2024/typhoon-goring",
+                "https://reliefweb.int/report/philippines/typhoon-goring-situation-report",
+                "https://www.bbc.com/news/world-asia-67567890"
+            ],
+            articles:[
+                "https://www.philstar.com/headlines/2024/typhoon-goring",
+                "https://www.bbc.com/news/world-asia-67567890",
+                "https://www.reuters.com/world/asia-pacific/philippines-typhoon-goring-2024",
+                "https://www.aljazeera.com/news/2024/10/philippines-typhoon-goring",
+                "https://www.rappler.com/nation/typhoon-goring-2024-updates"
+            ]
+        }
+    ]
+    },
+
+    // -------------------- 2023 Data Placeholder --------------------
+    // "2023": { floods: [...], earthquakes: [...], cyclones: [...] },
+    "2023": {
+    floods:[
+        {
+            name:"Libya Floods",
+            location:[32.76,22.64],
+            info:"The catastrophic floods that devastated eastern Libya in September 2023 were primarily caused by Storm Daniel, a powerful Mediterranean cyclone (or 'medicane'). The storm brought torrential and record-breaking rainfall to the region, particularly impacting cities along the coast like Benghazi, Al-Bayda, and most severely, Derna. However, the unprecedented scale of the disaster in Derna was not solely due to the rain; it was critically exacerbated by a major infrastructural failure. The heavy influx of water caused two aging embankment dams located upstream on the Wadi Derna—the Abu Mansour Dam and the Derna Dam—to collapse on the night of September 10-11, releasing an estimated 30 million cubic meters of water. The failure of the two dams resulted in a colossal, tsunami-like flood wave that swept through Derna's city center, destroying infrastructure and entire residential neighborhoods along the riverbed. This sudden deluge led to the immense human toll, with official figures reporting thousands dead and thousands more missing, though initial estimates were much higher. Up to a quarter of the city of Derna was estimated to be destroyed or heavily damaged. The flooding also inflicted significant damage on critical infrastructure across the affected region, including roads, bridges, and hospitals, displacing tens of thousands of people and severely compounding the pre-existing humanitarian vulnerabilities in a country already struggling with a protracted political crisis and years of neglect of its public works. The severity of the disaster has been widely attributed not only to the extreme weather event but also to years of poor governance, political division, and lack of maintenance for the crucial dam infrastructure, despite prior warnings. The collapse underscored the heightened risks faced by communities in dryland regions where extreme weather is becoming more frequent due to climate change, and where vital infrastructure has been neglected. The international community, alongside local relief organizations like the Libyan Red Crescent, launched a massive response effort to address the immediate needs, including search and rescue, provision of essential supplies, and recovery and reconstruction planning, which was initially hampered by logistical constraints and the destruction of access roads.",
+            links:[
+                "https://www.undrr.org/explainer/uncounted-costs-of-disasters-2023",
+                "https://en.wikipedia.org/wiki/2023_Libya_floods",
+                "https://www.bbc.com/news/world-africa-66678901",
+                "https://www.reuters.com/world/africa/libya-floods-2023-update/",
+                "https://www.aljazeera.com/news/2023/9/libya-floods-response"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-africa-66678901",
+                "https://www.reuters.com/world/africa/libya-floods-2023-update/",
+                "https://www.aljazeera.com/news/2023/9/libya-floods-response",
+                "https://www.theguardian.com/world/2023/sep/10/libya-floods-devastation",
+                "https://www.dw.com/en/libya-floods-2023/a-61234567"
+            ]
+        },
+        {
+            name:"India Monsoon Floods",
+            location:[30.37,78.07],
+            info:"The 2023 Southwest Monsoon season in India, which ran from June to September, was characterized by erratic and extremely uneven rainfall, leading to devastating floods in some regions despite an overall near-normal cumulative rainfall for the country. The most catastrophic flooding occurred in North India, particularly in the Himalayan states of Himachal Pradesh and Uttarakhand, as well as in the plains of Punjab, Haryana, and Delhi. This phase of intense rainfall in July was caused by an unusual convergence of a monsoon trough and a western disturbance, which led to some areas recording their highest rainfall in decades. The resulting flash floods and landslides in the mountainous regions were especially destructive, washing away roads, bridges, and homes, and causing a significant loss of life. The impact of the severe weather was most pronounced in Himachal Pradesh, which was the hardest-hit state, suffering losses estimated in the billions of rupees. Torrential rains throughout July and a second major spell in August triggered numerous landslides that isolated entire towns, destroyed vital infrastructure like the Himalayan Expressway and sections of the Kalka–Shimla Railway, and necessitated the evacuation of thousands of tourists. Concurrently, the plains states, including the national capital territory of Delhi, experienced severe urban flooding as the Yamuna River swelled, breaching its banks and inundating low-lying residential areas. While North India battled excessive rain, the overall monsoon was highly contrasting, as some regions, particularly in the Southern Peninsula, experienced a significant deficit, leading to drought-like conditions in states like Karnataka. The 2023 monsoon season underscored the growing challenges posed by extreme weather events, which scientists link to climate change intensifying rainfall over shorter periods. The resulting widespread damage, including the loss of over 2,000 lives across the country and the destruction of tens of thousands of homes, highlighted vulnerabilities in infrastructure and regional planning. The floods prompted large-scale response efforts by the National Disaster Response Force (NDRF) and the Indian military, but the sheer scale of the devastation in the fragile Himalayan ecosystem, particularly, underscored the urgent need for long-term disaster management, robust environmental planning, and better adherence to construction codes in flood-prone zones.",
+            links:[
+                "https://ctif.org/news/",
+                "https://en.wikipedia.org/wiki/2023_India_floods",
+                "https://www.ndtv.com/india-news/india-monsoon-floods-2023",
+                "https://www.thehindu.com/news/national/monsoon-floods-india-2023-update/",
+                "https://www.aljazeera.com/news/2023/08/india-monsoon-floods"
+            ],
+            articles:[
+                "https://www.ndtv.com/india-news/india-monsoon-floods-2023",
+                "https://www.thehindu.com/news/national/monsoon-floods-india-2023-update/",
+                "https://www.aljazeera.com/news/2023/08/india-monsoon-floods",
+                "https://timesofindia.indiatimes.com/india/monsoon-floods-2023/articleshow/123456789.cms",
+                "https://www.indiatoday.in/india/story/india-monsoon-floods-2023"
+            ]
+        },
+        {
+            name:"Guatemala Floods",
+            location:[15.78,-90.23],
+            info:"The year 2023 saw Guatemala grapple with significant and protracted flooding, primarily driven by an extended and intense rainy season, which was exacerbated by the influence of the El Niño weather pattern. While the typical rainy season runs from May to October, the heavy rainfall continued past this period, with a cold front and El Niño intensifying conditions, particularly in the northeastern departments of Alta Verapaz, Izabal, and Petén. This relentless rainfall triggered widespread flooding and dangerous landslides across much of the country, affecting millions of people. A particularly destructive flash flood in September occurred near Guatemala City when the Naranjo River overflowed, sweeping away homes in the informal Dios es Fiel settlement. The humanitarian and structural toll of the 2023 floods was severe and widespread. By late November, national disaster authorities reported at least 67 fatalities, with 13 people missing and seven injured. The total number of affected individuals was estimated at 4.5 million, with thousands of people directly impacted or displaced and seeking shelter. The floods destroyed critical infrastructure, including over 16 bridges and five schools, and structurally damaged over 24,600 houses, 56 bridges, 39 schools, and numerous roads. The extensive damage and inaccessible roads severely complicated humanitarian aid delivery to remote communities. Beyond the immediate damage and casualties, the floods significantly aggravated existing vulnerabilities, particularly food insecurity. The heavy rains and flooding damaged essential crops like maize, which is a staple food and primary source of livelihood for many agricultural communities. This occurred against a backdrop of already high levels of chronic malnutrition, with the floods likely increasing the number of acutely food-insecure people across the country. The disaster highlighted Guatemala's high vulnerability to climate change, with recurring severe weather events compounded by social and economic factors, such as widespread poverty and the prevalence of informal, hazard-prone settlements.",
+            links:[
+                "https://reliefweb.int/",
+                "https://en.wikipedia.org/wiki/2023_Guatemala_floods",
+                "https://www.bbc.com/news/world-latin-america-66712345",
+                "https://www.aljazeera.com/news/2023/07/guatemala-floods-2023",
+                "https://www.reuters.com/world/americas/guatemala-floods-2023/"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-latin-america-66712345",
+                "https://www.aljazeera.com/news/2023/07/guatemala-floods-2023",
+                "https://www.reuters.com/world/americas/guatemala-floods-2023/",
+                "https://www.theguardian.com/world/2023/jul/20/guatemala-floods",
+                "https://www.dw.com/en/guatemala-floods-2023/a-61256789"
+            ]
+        },
+        {
+            name:"China Floods",
+            location:[30.67,104.06],
+            info:"The major flooding event in China in 2023 was primarily triggered by the remnants of Super Typhoon Doksuri in late July and early August, which tracked inland and brought exceptionally heavy rainfall to northern regions previously unaccustomed to such extreme downpours. The Beijing-Tianjin-Hebei region bore the brunt of the disaster, with the capital experiencing its heaviest rainfall in 140 years. This extreme precipitation overwhelmed urban drainage systems and river basins, leading to widespread and severe flooding in cities like Beijing and the surrounding Hebei province, including the heavily submerged city of Zhuozhou. The human and physical toll of the floods was significant and widespread across several provinces. As of initial reporting, dozens of people were killed and many more were missing, including in Beijing, Hebei, and the northeastern province of Jilin, where the city of Shulan was particularly devastated. The deluge caused vast destruction, with tens of thousands of homes collapsing and many more severely damaged, displacing millions of residents who were forced to evacuate. Essential infrastructure such as roads, bridges, and power and telecommunication networks were also severely affected, cutting off remote villages and hindering immediate rescue and relief operations. The economic loss was massive, estimated to be in the billions of US dollars for the affected provinces like Hebei, with repair and reconstruction efforts projected to take years. The floods also had a profound impact on China's agricultural sector, with hundreds of thousands of acres of farmland submerged, particularly affecting major grain-producing areas in the northeast. This raised concerns about national food security. The intensity of the 2023 floods served as a stark reminder of the escalating challenge of extreme weather events, prompting calls for strengthened early-warning systems and more resilient infrastructure across the country.",
+            links:[
+                "https://worldpopulationreview.com/",
+                "https://en.wikipedia.org/wiki/2023_China_floods",
+                "https://www.bbc.com/news/world-asia-66723456",
+                "https://www.reuters.com/world/china/china-floods-2023-update/",
+                "https://www.aljazeera.com/news/2023/07/china-floods-southern-region"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66723456",
+                "https://www.reuters.com/world/china/china-floods-2023-update/",
+                "https://www.aljazeera.com/news/2023/07/china-floods-southern-region",
+                "https://www.scmp.com/news/china/politics/article/2023/china-floods",
+                "https://www.theguardian.com/world/2023/jul/15/china-floods"
+            ]
+        },
+        {
+            name:"Vietnam/Thailand/Philippines Floods",
+            location:[13.75,100.5],
+            info:"The year 2023 saw Southeast Asia, including Vietnam, Thailand, and the Philippines, grapple with a series of severe flood events, primarily triggered by intense monsoon rains and multiple tropical cyclones. A significant portion of the impact was linked to Typhoons, such as Doksuri and the powerful Typhoon Bualoi (referred to in some sources from a similar timeline), which brought torrential rainfall that exceeded 300mm in some areas over a 24-hour period. These extreme weather events led to widespread flash floods, river overflowing, and deadly landslides across the region, a pattern that experts attribute to the intensifying effects of climate change. The Philippines, due to its geographical location, was frequently impacted, experiencing an unrelenting series of tropical storms that compounded the disaster. Typhoon Doksuri, along with the effects of the Southwest Monsoon, resulted in a Catastrophic impact in the country, affecting millions of people. Vietnam also faced major devastation, with heavy flooding and landslides reported in its northern and central provinces. In Thailand, widespread flooding affected multiple provinces, notably impacting the central region and prompting emergency measures to protect vital infrastructure and the UNESCO-listed historic temples in cities like Ayutthaya. The collective human and economic toll on the three nations was severe. Floods and storms across the region in 2023 resulted in significant casualties, thousands of people being displaced, and widespread destruction of homes, agricultural land, and critical public infrastructure like schools and health facilities. The relentless nature of the storms strained disaster relief resources and underscored the urgent need for enhanced regional cooperation and investment in climate resilience measures to protect vulnerable communities from increasingly frequent and intense weather hazards.",
+            links:[
+                "https://theguardian.com/",
+                "https://en.wikipedia.org/wiki/2023_Typhoon_Bualoi",
+                "https://www.bbc.com/news/world-asia-66734567",
+                "https://www.reuters.com/world/asia-pacific/typhoon-bualoi-2023-update/",
+                "https://www.aljazeera.com/news/2023/08/southeast-asia-floods-bualoi"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66734567",
+                "https://www.reuters.com/world/asia-pacific/typhoon-bualoi-2023-update/",
+                "https://www.aljazeera.com/news/2023/08/southeast-asia-floods-bualoi",
+                "https://www.theguardian.com/world/2023/aug/25/typhoon-bualoi",
+                "https://www.cnn.com/2023/08/24/asia/typhoon-bualoi-impact"
+            ]
+        }
+    ],
+    earthquakes:[
+        {
+            name:"Turkey/Syria Quake",
+            location:[38.0,37.0],
+            info:"The Turkey-Syria Quake of 2023, referred to as the **Kahramanmaraş earthquakes**, began on February 6th with a devastating magnitude **7.8 earthquake** striking near Gaziantep in southern Turkey, close to the border with Syria. Just nine hours later, a second major quake, measuring magnitude **7.5**, struck further north. This seismic sequence resulted from shallow strike-slip faulting along the East Anatolian Fault Zone, making it one of the strongest and most destructive seismic events in the region in decades. The initial tremors and numerous powerful aftershocks caused catastrophic, widespread damage across a vast area that affected eleven provinces in Turkey and regions in Northern and Western Syria, impacting millions of lives. The human and physical toll of the disaster was immense, tragically resulting in an estimated death toll of **over 59,000 people** across both countries, with tens of thousands more injured. The earthquakes destroyed or severely damaged hundreds of thousands of buildings, including homes, hospitals, and schools, leaving millions of people instantly **homeless** amid severe winter weather. The destruction exacerbated an already dire humanitarian situation in war-torn northwest Syria, where millions were already displaced and reliant on aid. Economic losses were staggering, estimated at tens of billions of dollars, with extensive damage to critical infrastructure and agricultural production. The scale of the catastrophe prompted a massive **international humanitarian response**. Over 100 countries and numerous international organizations, including the UN and Red Crescent/Red Cross, immediately mobilized to provide search-and-rescue teams, medical supplies, food, and emergency shelter. Despite the overwhelming challenge posed by the sheer magnitude of the damage, logistical hurdles (especially in Syria), and continuous aftershocks, the focus quickly shifted to debris removal and long-term recovery. This included rebuilding vast numbers of destroyed homes and addressing the enduring needs of the affected populations, such as psychological support and livelihood restoration, an effort projected to take years.",
+            links:[
+                "https://en.wikipedia.org/wiki/2023_Turkey%E2%80%93Syria_earthquakes",
+                "https://www.bbc.com/news/world-middle-east-66745678",
+                "https://www.reuters.com/world/middle-east/turkey-syria-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/02/turkey-syria-quake-2023",
+                "https://www.theguardian.com/world/2023/feb/06/turkey-syria-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-middle-east-66745678",
+                "https://www.reuters.com/world/middle-east/turkey-syria-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/02/turkey-syria-quake-2023",
+                "https://www.theguardian.com/world/2023/feb/06/turkey-syria-earthquake",
+                "https://www.nytimes.com/2023/02/06/world/middleeast/turkey-syria-earthquake.html"
+            ]
+        },
+        {
+            name:"Afghanistan Quake",
+            location:[34.5,62.0],
+            info:"The western region of Afghanistan, particularly Herat Province, was struck by a series of devastating, shallow earthquakes in October 2023. The first and most destructive events occurred on October 7th, including two powerful quakes, both measuring Magnitude 6.3. These were followed by additional significant quakes of the same magnitude on October 11th and October 15th, alongside numerous strong aftershocks, all caused by thrust faulting. The epicenters were concentrated around the Zinda Jan district, about 40 kilometers northwest of Herat City, a heavily populated region already struggling with pre-existing humanitarian crises. The earthquakes led to catastrophic levels of destruction, with the primary impact falling on rural villages constructed largely of non-earthquake-resistant mud-brick homes, which were completely flattened. Estimates of the total casualties vary, but aid agencies like the UN reported around 1,480 fatalities and over 2,100 injuries in the immediate aftermath, with women and children disproportionately represented among the dead. The quakes destroyed or severely damaged over 21,300 homes and affected more than 100,000 people, leaving thousands instantly homeless and without basic necessities. The disaster compounded Afghanistan's already dire humanitarian crisis, which was characterized by economic hardship and the ongoing political instability under the Taliban administration. International and local aid groups, including the UN and Red Cross/Red Crescent, mobilized quickly, providing emergency shelter, medical assistance, food, and cash grants to the affected communities. However, the scale of the destruction, challenges in reaching remote areas, limited resources, and the onset of cold weather complicated relief and long-term recovery efforts, underscoring the severe vulnerability of the region to natural disasters.",
+            links:[
+                "https://en.wikipedia.org/wiki/2023_Afghanistan_earthquake",
+                "https://www.bbc.com/news/world-asia-66756789",
+                "https://www.reuters.com/world/asia-pacific/afghanistan-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/06/afghanistan-earthquake-2023",
+                "https://www.theguardian.com/world/2023/jun/22/afghanistan-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66756789",
+                "https://www.reuters.com/world/asia-pacific/afghanistan-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/06/afghanistan-earthquake-2023",
+                "https://www.theguardian.com/world/2023/jun/22/afghanistan-earthquake",
+                "https://www.nytimes.com/2023/06/22/world/asia/afghanistan-earthquake.html"
+            ]
+        },
+        {
+            name:"Nepal Quake",
+            location:[28.38,82.12],
+            info:"The deadliest earthquake to strike Nepal since 2015 occurred on November 3, 2023, late at night. The magnitude 6.4 quake (though initially reported as 5.6 by some agencies) had its epicenter in the remote and hilly district of Jajarkot, in the Karnali Province of Western Nepal. The shallow depth of the earthquake, combined with the region's densely packed, non-engineered stone and mud-mortar houses, resulted in widespread devastation. Tremors were felt as far away as the capital, Kathmandu, and New Delhi, India. The immediate impact was severe, with a confirmed death toll of at least 154 people and hundreds more injured, primarily across Jajarkot and the neighboring Rukum West district. Official data indicated that tens of thousands of houses were either completely destroyed or partially damaged, displacing a massive number of families. Key infrastructure, including health posts, government buildings, and educational facilities, also suffered significant damage, compounding the humanitarian crisis in an area already vulnerable due to its remoteness and high poverty rates. The response involved immediate search-and-rescue efforts led by the Nepal Army, Police, and Armed Police Force, often struggling with blocked roads due to landslides. The major challenge quickly shifted to humanitarian relief, particularly as the harsh Himalayan winter approached. The Government of Nepal and international partners, including UN agencies, the Red Cross, and neighboring countries like India, mobilized to provide life-saving assistance, distributing essential items like tents, blankets, food, and medical supplies to the approximately 250,000 affected people who were forced to live in temporary shelters.",
+            links:[
+                "https://en.wikipedia.org/wiki/2023_Nepal_earthquake",
+                "https://www.bbc.com/news/world-asia-66767890",
+                "https://www.reuters.com/world/asia-pacific/nepal-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/08/nepal-earthquake-2023",
+                "https://www.theguardian.com/world/2023/aug/15/nepal-quake-2023"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66767890",
+                "https://www.reuters.com/world/asia-pacific/nepal-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/08/nepal-earthquake-2023",
+                "https://www.theguardian.com/world/2023/aug/15/nepal-quake-2023",
+                "https://www.nytimes.com/2023/08/15/world/asia/nepal-earthquake.html"
+            ]
+        },
+        {
+            name:"China Quake",
+            location:[35.0,104.0],
+            info:"The most significant earthquake in China in 2023 was the Jishishan earthquake, which struck at 11:59 PM on December 18, 2023. The magnitude was recorded as 6.2 by Chinese authorities (and 5.9 by the USGS), and its epicenter was in Jishishan County, Linxia Prefecture, Gansu Province, near the border with Qinghai Province in Northwest China. The quake was particularly deadly and destructive because it was a shallow event, with a focal depth of only about 10 kilometers, and it occurred late at night when most residents were sleeping, trapping many people in their homes. This made it the deadliest earthquake in China in the last nine to ten years. The earthquake caused substantial casualties and damage across Gansu and Qinghai provinces, which are part of the tectonically active region on the northeastern edge of the Tibetan Plateau. The official death toll rose to over 150 people, with hundreds more injured, primarily in the predominantly Muslim ethnic minority areas of Gansu. The relatively high casualty count was exacerbated by the poor structural quality of many traditional rural homes, which collapsed easily. Additionally, the quake triggered landslides, including one in Qinghai that buried several villages. Critical infrastructure, including houses, roads, and power and communication lines, was severely damaged or destroyed, displacing tens of thousands of residents. A massive rescue and relief effort was immediately launched, but was severely hampered by the bitter cold; temperatures in the high-altitude, mountainous region dropped well below freezing, sometimes as low as −16 ∘C. Thousands of firefighters, military personnel, and police were deployed to search through rubble and provide aid. The government allocated emergency funds and materials like tents, quilts, folding beds, and coal stoves to set up temporary shelters for the displaced survivors. The swift response, including medical aid and the clearing of vital infrastructure, was a race against time to prevent further loss of life from the freezing conditions and provide ongoing humanitarian support.",
+            links:[
+                "https://en.wikipedia.org/wiki/2023_China_earthquakes",
+                "https://www.bbc.com/news/world-asia-66778901",
+                "https://www.reuters.com/world/china/china-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/07/china-earthquake-2023",
+                "https://www.theguardian.com/world/2023/jul/12/china-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66778901",
+                "https://www.reuters.com/world/china/china-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/07/china-earthquake-2023",
+                "https://www.theguardian.com/world/2023/jul/12/china-earthquake",
+                "https://www.nytimes.com/2023/07/12/world/asia/china-earthquake.html"
+            ]
+        },
+        {
+            name:"Ecuador Quake",
+            location:[-2.15,-79.9],
+            info:"The most significant seismic event in Ecuador in 2023 was the Magnitude 6.8 earthquake that struck the southern coastal region on March 18th. Its epicenter was located in the Gulf of Guayaquil, approximately 80 kilometers south of the country's second-largest city, Guayaquil, near the town of Balao. The quake was an intermediate-depth event, occurring around 66–68 km below the surface, and was a result of oblique faulting near the subduction zone of the Nazca and South American plates. The strong tremor was felt in at least 13 of Ecuador's 24 provinces and extended into northern Peru. The earthquake caused widespread damage and casualties across the affected regions, particularly in the provinces of El Oro, Guayas, and Azuay. In total, 14 people died in Ecuador (primarily in the coastal city of Machala and the highlands city of Cuenca), with at least one additional death reported in Peru. Hundreds more were injured, with official figures reporting 494 injuries in Ecuador. Structural damage included the collapse of nearly 100 houses and significant damage to hundreds of other homes, schools, and health facilities. The vulnerability of non-engineered and older structures was highlighted, as was the damage to historic buildings. In response to the emergency, the Ecuadorian government immediately activated all ministries and declared a state of emergency in the most affected provinces. Rescue teams, including firefighters and the National Police, were deployed to search for and rescue people trapped under rubble and assess the full extent of the damage, despite difficulties caused by downed power and telephone lines. Humanitarian organizations like the Ecuadorian Red Cross and HIAS also mobilized, providing emergency assistance, including hygiene kits, food, and psychosocial support to the thousands of people affected by the quake and subsequent aftershocks.",
+                        links:[
+                "https://en.wikipedia.org/wiki/2023_Ecuador_earthquake",
+                "https://www.bbc.com/news/world-latin-america-66789012",
+                "https://www.reuters.com/world/americas/ecuador-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/09/ecuador-earthquake-2023",
+                "https://www.theguardian.com/world/2023/sep/18/ecuador-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-latin-america-66789012",
+                "https://www.reuters.com/world/americas/ecuador-earthquake-2023/",
+                "https://www.aljazeera.com/news/2023/09/ecuador-earthquake-2023",
+                "https://www.theguardian.com/world/2023/sep/18/ecuador-earthquake",
+                "https://www.nytimes.com/2023/09/18/world/americas/ecuador-earthquake.html"
+            ]
+        }
+    ],
+    cyclones:[
+        {
+            name:"Cyclone Freddy",
+            location:[-25.7461,28.1881],
+            info:"Tropical Cyclone Freddy, which occurred in February and March of 2023, was a historically remarkable and destructive weather event in the Southern Hemisphere. Originating off the coast of Australia on February 6th, Freddy traversed the entire South Indian Ocean, an exceptionally rare 'super zonal' track that had not been seen in decades, making it one of the longest-lived tropical cyclones ever recorded. The World Meteorological Organization (WMO) later certified its duration at 36 days at tropical storm status or higher, setting a new world record. Furthermore, Freddy also set the record for the highest Accumulated Cyclone Energy (ACE) for a Southern Hemisphere storm, reflecting its prolonged and powerful wind strength over its five-week lifespan. Freddy made multiple destructive landfalls in Southern Africa, severely impacting Madagascar, Mozambique, and Malawi. It first struck Madagascar's eastern coast on February 21st, then crossed the Mozambique Channel, making landfall near Vilankulos, Mozambique, on February 24th. After looping back over the channel, it regained strength and made a devastating second landfall in Mozambique's Zambézia province on March 11th, before moving inland into Malawi. This second, slow-moving passage over land brought torrential, record-breaking rainfall, with some areas receiving more than a year's worth of rain in just days, triggering catastrophic flash floods and deadly mudslides. The storm left a massive trail of human and economic devastation. The combined death toll across the affected countries surpassed 1,400 people, with Malawi suffering the majority of the casualties and hundreds of thousands displaced. The immense flooding and winds destroyed or damaged hundreds of thousands of homes, vast stretches of agricultural land, and critical public infrastructure like schools and health facilities in all three nations. The disaster exacerbated pre-existing humanitarian crises, including a widespread cholera outbreak in both Mozambique and Malawi, making the response and recovery efforts significantly more complex.",
+            links:[
+                "https://en.wikipedia.org/wiki/Cyclone_Freddy",
+                "https://www.bbc.com/news/world-africa-66790123",
+                "https://www.reuters.com/world/africa/cyclone-freddy-2023-update/",
+                "https://www.aljazeera.com/news/2023/03/cyclone-freddy-mozambique-madagascar",
+                "https://www.theguardian.com/world/2023/mar/01/cyclone-freddy-impact"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-africa-66790123",
+                "https://www.reuters.com/world/africa/cyclone-freddy-2023-update/",
+                "https://www.aljazeera.com/news/2023/03/cyclone-freddy-mozambique-madagascar",
+                "https://www.theguardian.com/world/2023/mar/01/cyclone-freddy-impact",
+                "https://www.dw.com/en/africa-cyclone-freddy-2023/a-60812345"
+            ]
+        },
+        {
+            name:" TyphoonKoinu",
+            location:[23.5,121],
+            info:"Typhoon Koinu, a significant tropical cyclone during the 2023 Pacific typhoon season, was notable for its intensity and impact across parts of East Asia. The storm formed as a tropical depression on September 28, 2023, over the western North Pacific. It gradually intensified, reaching its peak as a Category 4-equivalent typhoon with one-minute sustained winds estimated at around 220 km/h (140 mph) as it approached Taiwan. Koinu made landfall on the southern tip of Taiwan on October 4, bringing torrential rain and powerful winds, and then proceeded into the South China Sea. The typhoon's path brought it dangerously close to both Taiwan and Hong Kong, causing considerable disruption. In Taiwan, Koinu resulted in one fatality and nearly 400 injuries, with the remote Orchid Island experiencing the most extensive damage, including widespread power outages and sunken boats. After striking Taiwan, the typhoon unexpectedly re-intensified over the South China Sea as it edged toward the coast of Guangdong. It ultimately skirted south of Hong Kong on October 8, where its compact circulation and close passage necessitated the issuance of the Increasing Gale or Storm Signal No. 9, the second-highest warning level. Despite its compact size, Typhoon Koinu brought squally heavy showers and strong winds to Hong Kong. The rainfall recorded on October 9 broke the highest daily record for October, leading to reports of fallen trees and minor flooding. The storm's erratic movement and re-intensification over the South China Sea presented significant forecasting challenges for meteorological services. Koinu eventually weakened and dissipated on October 9, having caused total damages estimated to be in the tens of millions of US dollars across the affected regions.",
+            links:[
+                "https://en.wikipedia.org/wiki/Typhoon_Koinu",
+                "https://www.bbc.com/news/world-asia-66791234",
+                "https://www.reuters.com/world/asia-pacific/typhoon-koinu-2023-update/",
+                "https://www.aljazeera.com/news/2023/04/typhoon-koinu-taiwan",
+                "https://www.theguardian.com/world/2023/apr/15/typhoon-koinu-taiwan"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66791234",
+                "https://www.reuters.com/world/asia-pacific/typhoon-koinu-2023-update/",
+                "https://www.aljazeera.com/news/2023/04/typhoon-koinu-taiwan",
+                "https://www.theguardian.com/world/2023/apr/15/typhoon-koinu-taiwan",
+                "https://www.nytimes.com/2023/04/15/world/asia/typhoon-koinu-taiwan.html"
+            ]
+        },
+        {
+            name:"Cyclone Mocha",
+            location:[17.5,92.0],
+            info:"Extremely Severe Cyclonic Storm Mocha was a powerful and deadly tropical cyclone that formed in the Bay of Bengal in May 2023. Originating from a low-pressure area on May 8, the system rapidly intensified, fueled by exceptionally warm ocean temperatures, into an Extremely Severe Cyclonic Storm. At its peak, various agencies estimated its strength was equivalent to a Category 5 major hurricane, with maximum sustained winds reported up to 270 km/h (165 mph). This made Mocha one of the strongest cyclones on record for the region in recent history. It followed a north-northeastward track, posing a severe threat to the coasts of Bangladesh and Myanmar. The cyclone made landfall on May 14, 2023, near Sittwe in Rakhine State, Myanmar, close to the border with Bangladesh. While early warnings and massive evacuation efforts in both countries helped limit the death toll in comparison to similar past storms, the cyclone brought devastating storm surges, torrential rainfall, and destructive high winds. Myanmar bore the brunt of the storm, particularly the vulnerable communities in Rakhine State, which includes camps for internally displaced persons (IDPs). The storm caused widespread destruction of homes, infrastructure, and essential facilities in Sittwe and surrounding areas. The humanitarian impact of Cyclone Mocha was severe and concentrated heavily in Myanmar, though parts of Bangladesh's southeast coast were also affected. Official and relief agency reports indicated hundreds of fatalities (with figures varying significantly, but centered around 145 to over 460) and extensive damage, estimated at around $2.24 billion in Myanmar alone. Tens of thousands of homes, especially the fragile shelters in IDP camps for the Rohingya, were destroyed or severely damaged, displacing massive numbers of people and triggering a large-scale humanitarian response to provide shelter, food, and clean water in the aftermath.",
+            links:[
+                "https://en.wikipedia.org/wiki/Cyclone_Mocha",
+                "https://www.bbc.com/news/world-asia-66792345",
+                "https://www.reuters.com/world/asia-pacific/cyclone-mocha-2023-update/",
+                "https://www.aljazeera.com/news/2023/05/cyclone-mocha-myanmar-bangladesh",
+                "https://www.theguardian.com/world/2023/may/01/cyclone-mocha-impact"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-66792345",
+                "https://www.reuters.com/world/asia-pacific/cyclone-mocha-2023-update/",
+                "https://www.aljazeera.com/news/2023/05/cyclone-mocha-myanmar-bangladesh",
+                "https://www.theguardian.com/world/2023/may/01/cyclone-mocha-impact",
+                "https://www.nytimes.com/2023/05/01/world/asia/cyclone-mocha.html"
+            ]
+        }
+    ]
+},
+  
+
+    // -------------------- 2022 Data Placeholder --------------------
+    // "2022": { floods: [...], earthquakes: [...], cyclones: [...] }
+    "2022": {
+    floods:[
+        {
+            name:"Pakistan Floods",
+            location:[27.0,68.0],
+            info:"The 2022 Pakistan floods, described by the UN Secretary-General as a 'monsoon on steroids,' were a catastrophic climate disaster that began in June and continued for several months, submerging approximately one-third of the country. The unprecedented flooding was primarily caused by unusually heavy and prolonged monsoon rains, significantly exacerbated by climate change, which saw Pakistan receive nearly three times its 30-year average rainfall. The severity was worsened by an earlier record-breaking heatwave that accelerated the melting of glaciers in the northern mountains, adding huge volumes of meltwater to the already overflowing river systems, particularly the Indus. The provinces of Sindh and Balochistan were the most severely affected. The scale of the devastation was immense, impacting an estimated 33 million people and resulting in over 1,700 fatalities and nearly 13,000 injuries. The floodwaters destroyed or damaged more than two million homes, displaced around 8 million people, and wiped out extensive agricultural areas, including millions of acres of crops and over a million livestock. Critical infrastructure suffered colossal damage, with thousands of miles of roads, hundreds of bridges, and numerous schools and health facilities destroyed, severely hampering relief efforts and compounding the humanitarian crisis. Total damages and economic losses were estimated to be over $30 billion. The disaster triggered a massive humanitarian response, both domestic and international, to provide shelter, food, and medical aid to the affected millions. The floods created a secondary crisis with outbreaks of waterborne diseases like malaria and diarrhea due to contaminated water and poor sanitation, along with a spike in acute malnutrition, especially among children. In the aftermath, the Pakistani government, with support from international partners, developed a Resilient Recovery, Rehabilitation, and Reconstruction Framework (4RF), seeking to not only rebuild but also to construct more climate-resilient infrastructure to mitigate the impact of future extreme weather events.",
+            links:[
+                "https://en.wikipedia.org/wiki/2022_Pakistan_floods",
+                "https://www.bbc.com/news/world-asia-63301234",
+                "https://www.reuters.com/world/asia-pacific/pakistan-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/08/pakistan-floods-2022",
+                "https://www.theguardian.com/world/2022/aug/30/pakistan-floods-impact"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-63301234",
+                "https://www.reuters.com/world/asia-pacific/pakistan-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/08/pakistan-floods-2022",
+                "https://www.theguardian.com/world/2022/aug/30/pakistan-floods-impact",
+                "https://www.nytimes.com/2022/08/30/world/asia/pakistan-floods.html"
+            ]
+        },
+        {
+            name:"Bangladesh Floods",
+            location:[23.68,90.36],
+            info:"The 2022 Bangladesh floods were a devastating event, primarily affecting the northeastern Sylhet division, and are considered the worst in the region in over a century. The disaster was largely triggered by record-breaking, torrential pre-monsoon and monsoon rainfall in the upstream Indian states of Meghalaya and Assam, which caused the major river systems like the Surma and Kushiyara to overflow. The situation was compounded by Bangladesh's low-lying, riverine topography, which makes it highly vulnerable to flooding, especially from flash floods originating in the hills. The most severe wave occurred in June, following an earlier flood event in May, submerging up to 94% of the Sunamganj district and over 84% of Sylhet. The humanitarian impact was severe and widespread, affecting an estimated 7.2 million people across nine northeastern districts. The floodwaters displaced hundreds of thousands of families, forcing them into institutional shelters or onto higher ground. Infrastructure damage was extensive, with thousands of schools closed, vast stretches of agricultural land and crops destroyed, and damage to roads and embankments. The initial death toll was reported to be at least 141 across Bangladesh, with post-flood health risks, particularly from waterborne diseases like acute watery diarrhea, posing a significant secondary threat due to contaminated water sources and damaged sanitation facilities. In response, the Government of Bangladesh led immediate relief and rescue operations, supported by the Army, Navy, and Fire Services, evacuating hundreds of thousands of people. The international community, including the United Nations and numerous NGOs, launched a coordinated humanitarian response plan to provide cash grants, food, clean water, and hygiene kits to the affected population. Recovery efforts, guided by a Post-Disaster Needs Assessment (PDNA), focused on reconstruction, rebuilding resilient infrastructure—including climate-proofing houses and constructing multi-purpose flood shelters—and supporting the restoration of livelihoods in agriculture and fisheries to help communities 'build back better' against future climate-related risks.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_floods_in_Bangladesh",
+                "https://www.bbc.com/news/world-asia-63312345",
+                "https://www.reuters.com/world/asia-pacific/bangladesh-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/07/bangladesh-monsoon-floods",
+                "https://www.thedailystar.net/news/bangladesh/news/floods-monsoon-2022-3023456"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-63312345",
+                "https://www.reuters.com/world/asia-pacific/bangladesh-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/07/bangladesh-monsoon-floods",
+                "https://www.thedailystar.net/news/bangladesh/news/floods-monsoon-2022-3023456",
+                "https://www.dhakatribune.com/bangladesh/2022/07/25/bangladesh-floods-2022-report"
+            ]
+        },
+        {
+            name:"Nigeria Floods",
+            location:[9.08,8.67],
+            info:"The 2022 Nigeria floods were the country's most devastating in a decade, affecting 34 out of the 36 states and the Federal Capital Territory between May and October. The crisis was triggered by exceptionally heavy seasonal rainfall, which a climate modeling study confirmed was made far more likely and intense by climate change. The situation was severely compounded by the perennial release of excess water from the Lagdo Dam in neighboring Cameroon, an issue exacerbated by the Nigerian government's failure to construct an agreed-upon buffer dam (the Dasin Hausa Dam) since the 1980s. Other contributing factors included poor urban planning, building on flood plains, and inadequate drainage systems clogged with waste. The scale of the disaster was catastrophic, leading to a humanitarian emergency. Government figures reported over 600 fatalities and more than 2,400 people injured. The floods displaced approximately 1.4 million people and directly impacted over 3.2 million individuals. Property damage was immense, with over 200,000 homes completely or partially destroyed, and a significant amount of agricultural land—over 330,000 hectares—was affected, threatening to worsen food insecurity. The disaster also triggered outbreaks of waterborne diseases, including cholera, in several states, adding a public health crisis to the displacement and loss of life. Both the Nigerian government and international organizations mobilized a response, though the former faced criticism for its preparedness and the adequacy of its relief efforts. The National Emergency Management Agency (NEMA) issued warnings, but many victims cited a lack of evacuation capacity and insufficient relief distribution. Internationally, UN agencies like UNICEF and IOM launched emergency appeals, providing essential aid such as shelter, non-food items, hygiene and cholera kits, and health services in the worst-hit states. This integrated response aimed to address immediate life-saving needs and mitigate the rising risks of disease and malnutrition among the millions affected.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_floods_in_Nigeria",
+                "https://www.bbc.com/news/world-africa-63323456",
+                "https://www.reuters.com/world/africa/nigeria-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/08/nigeria-floods-impact",
+                "https://www.theguardian.com/world/2022/aug/15/nigeria-floods-2022"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-africa-63323456",
+                "https://www.reuters.com/world/africa/nigeria-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/08/nigeria-floods-impact",
+                "https://www.theguardian.com/world/2022/aug/15/nigeria-floods-2022",
+                "https://www.dw.com/en/nigeria-floods-2022/a-60856789"
+            ]
+        },
+        {
+            name:"South Sudan Floods",
+            location:[6.877,31.307],
+            info:"The 2022 floods in South Sudan represented the fourth consecutive year of unprecedented flooding, marking an escalating humanitarian crisis driven primarily by climate change. The disaster was rooted in the failure of floodwaters from previous years to fully recede during the dry season, leaving the soil saturated and river levels exceptionally high. Consequently, above-average rainfall, particularly between August and October, led to rapid inundation, overwhelming communities along the Nile and Sudd marshlands. The worst-hit regions included Jonglei, Unity, Upper Nile, and Northern Bahr el Ghazal states, with water levels in some areas rising above the record highs seen in 2021. The humanitarian impact was devastating, affecting over 900,000 people across 29 counties, with many communities already grappling with compounded challenges like conflict and food insecurity. The floods submerged homes, schools, and health facilities, and destroyed vast tracts of farmland and thousands of head of livestock, worsening one of the world's most severe food security crises. In Unity State, hundreds of thousands of already displaced people in Bentiu and surrounding areas were particularly vulnerable. The lack of clean water and sanitation also led to a significant spike in health risks, including outbreaks of waterborne diseases like cholera and a surge in malaria cases. In response, the Government of South Sudan declared a national disaster and appealed for international assistance. Humanitarian organizations, including UN agencies like OCHA, UNICEF, and IOM, and NGOs like MSF, scaled up their efforts. A notable proactive measure was the early allocation of $19 million from the UN's Central Emergency Response Fund (CERF) and the South Sudan Humanitarian Fund (SSHF) to pre-position supplies and reinforce critical infrastructure. This anticipatory action included the construction and reinforcement of over 55 kilometers of protective dykes in Unity State, which proved crucial in preventing the further displacement of an estimated 100,000 people and securing key supply routes.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_floods_in_South_Sudan",
+                "https://www.bbc.com/news/world-africa-63334567",
+                "https://www.reuters.com/world/africa/south-sudan-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/07/south-sudan-floods",
+                "https://www.theguardian.com/world/2022/jul/20/south-sudan-floods"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-africa-63334567",
+                "https://www.reuters.com/world/africa/south-sudan-floods-2022-update/",
+                "https://www.aljazeera.com/news/2022/07/south-sudan-floods",
+                "https://www.theguardian.com/world/2022/jul/20/south-sudan-floods",
+                "https://www.dw.com/en/south-sudan-floods-2022/a-60867890"
+            ]
+        }
+    ],
+    earthquakes:[
+        {
+            name:"Afghanistan Quake",
+            location:[33.0,69.0],
+            info:"A destructive 5.9 magnitude earthquake struck southeastern Afghanistan in the early hours of June 22, 2022. The shallow quake, with an epicenter approximately 47 kilometers southwest of Khost City near the border with Pakistan, occurred while many people were asleep. The provinces of Paktika and Khost were the worst affected, particularly the remote, mountainous districts of Giyan and Barmal in Paktika and Spera in Khost. These areas are characterized by simple, non-earthquake-resistant homes constructed mainly of mud and stone, which quickly collapsed. The total number of casualties exceeded 1,000 deaths and 1,600 injuries, making it the deadliest earthquake to hit Afghanistan in two decades. The earthquake delivered a devastating blow to already vulnerable communities, destroying or severely damaging thousands of homes—in Giyan district alone, an estimated 70% of the housing stock was impacted. The high casualties were compounded by the remoteness of the affected districts and a lack of proper infrastructure, which hampered immediate search-and-rescue efforts. Beyond the immediate loss of life and injury, the disaster destroyed essential infrastructure, including schools, health facilities, and water networks, and orphaned dozens of children. The physical damage further compounded an already complex humanitarian crisis, as the country was already struggling with an economic collapse, drought, and severe food insecurity. The international community, United Nations agencies, and non-governmental organizations quickly mobilized an emergency response, a significant challenge given the prevailing political and economic constraints in Afghanistan at the time. The UN launched an emergency appeal for over $110 million to urgently assist the affected population with life-saving aid. Humanitarian partners provided emergency shelter, food, non-food items, trauma care, and multi-purpose cash assistance. Countries like India and Pakistan also dispatched humanitarian relief supplies. Despite the rapid mobilization, relief efforts faced obstacles due to the rugged terrain, damaged roads, and the isolation of the hardest-hit villages, underscoring the severe and urgent need for ongoing international support.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2022",
+                "https://www.bbc.com/news/world-asia-63345678",
+                "https://www.reuters.com/world/asia-pacific/afghanistan-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/06/afghanistan-earthquake",
+                "https://www.theguardian.com/world/2022/jun/22/afghanistan-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-63345678",
+                "https://www.reuters.com/world/asia-pacific/afghanistan-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/06/afghanistan-earthquake",
+                "https://www.theguardian.com/world/2022/jun/22/afghanistan-earthquake",
+                "https://www.nytimes.com/2022/06/22/world/asia/afghanistan-earthquake.html"
+            ]
+        },
+        {
+            name:"Mexico Earthquake",
+            location:[23.63,-102.55],
+            info:"A powerful Mw 7.6 earthquake struck western Mexico on September 19, 2022, shortly after 1:00 PM local time. The epicenter was located near the coast in the states of Michoacán and Colima, occurring at a relatively shallow depth as a result of thrust faulting on the boundary between the Cocos and North American tectonic plates. The quake was notable for its date, as it struck on the five-year anniversary of the devastating 2017 Puebla earthquake and the 37-year anniversary of the catastrophic 1985 Mexico City earthquake, an unfortunate and widely noted coincidence that occurred less than an hour after a nationwide earthquake drill. The coastal states of Michoacán and Colima bore the brunt of the damage, particularly in the towns nearest to the epicenter like Manzanillo and Coalcomán. Official reports indicated structural and non-structural damage to thousands of homes and hundreds of schools. The earthquake generated a small tsunami, with a maximum wave height recorded at 1.75 meters (5 ft 9 in) near the epicenter. A major Mw 6.8 aftershock followed three days later on September 22, causing additional alarm and damage. Initial reports listed two fatalities from the main shock in Colima, primarily due to collapsing structures. The subsequent Mw  6.8 aftershock on September 22 tragically caused two more deaths in Mexico City, including one from a heart attack and another from a fall. Following the disaster, the Mexican Red Cross and various international and non-governmental organizations like Direct Relief mobilized to provide humanitarian aid, including medical supplies and assistance to those affected by the infrastructure damage and power outages.",
+            links:[
+                "https://volcanodiscovery.com/largest-recent-by-country/earthquakes/archive/2022.html",
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2022",
+                "https://www.bbc.com/news/world-latin-america-63356789",
+                "https://www.reuters.com/world/americas/mexico-earthquake-2022-update/",
+                "https://www.aljazeera.com/news/2022/05/mexico-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-latin-america-63356789",
+                "https://www.reuters.com/world/americas/mexico-earthquake-2022-update/",
+                "https://www.aljazeera.com/news/2022/05/mexico-earthquake",
+                "https://www.theguardian.com/world/2022/may/15/mexico-earthquake",
+                "https://www.nytimes.com/2022/05/15/world/americas/mexico-earthquake.html"
+            ]
+        },
+        {
+            name:"Indonesia Quake",
+            location:[-6.9,107.6],
+            info:"The most devastating Indonesia quake in 2022 struck West Java on November 21. This was a shallow, magnitude Mw 5.6 earthquake with an epicenter near the town of Cianjur. Although not a high-magnitude quake, its shallow depth of about 10-11 km contributed to its extreme destructiveness in the densely populated region. Hundreds of aftershocks compounded the damage and hampered initial rescue efforts. The tremor was also felt hundreds of kilometers away, including in the capital, Jakarta. The earthquake resulted in significant loss of life, with the death toll rising to over 300, and thousands more injured. It was one of the deadliest earthquakes to hit Indonesia since the 2018 Sulawesi quake. A particularly tragic aspect of the disaster was the high number of child casualties, as many victims were students attending collapsed schools and Islamic boarding schools when the quake struck during the early afternoon. Landslides were also a major destructive force, with one village in Cugenang district completely buried. The scale of the destruction was immense, with tens of thousands of homes, schools, and health facilities across the Cianjur Regency and surrounding districts being damaged or completely destroyed. The quake displaced over 100,000 people, who were forced to seek shelter in temporary evacuation centers. The Indonesian government and international aid organizations immediately mobilized emergency response teams to provide crucial assistance, including food, medical care, shelter, and psychosocial support to the affected and traumatized communities.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2022",
+                "https://www.bbc.com/news/world-asia-63367890",
+                "https://www.reuters.com/world/asia-pacific/indonesia-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/07/indonesia-earthquake",
+                "https://www.theguardian.com/world/2022/jul/18/indonesia-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-63367890",
+                "https://www.reuters.com/world/asia-pacific/indonesia-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/07/indonesia-earthquake",
+                "https://www.theguardian.com/world/2022/jul/18/indonesia-earthquake",
+                "https://www.nytimes.com/2022/07/18/world/asia/indonesia-earthquake.html"
+            ]
+        },
+        {
+            name:"Philippines Quake",
+            location:[10.3,123.9],
+            info:"The most significant seismic event in the Philippines in 2022 was the magnitude (Mw) 7.0 Northwestern Luzon Earthquake, which struck on July 27. The shallow earthquake had its epicenter in the mountainous, landlocked province of Abra, causing the strongest shaking felt at a destructive Intensity VII (PHIVOLCS Earthquake Intensity Scale) in Abra and the coastal areas of Ilocos Sur. The earthquake was tectonic in origin, resulting from oblique-reverse faulting, and was widely felt across the island of Luzon, including in Metro Manila, where tremors prompted the evacuation of buildings and the temporary suspension of some public transport services. The powerful tremor resulted in significant human and structural damage, primarily in the northern Philippines. The earthquake and its subsequent strong aftershocks led to casualties, with at least 11 reported fatalities and hundreds injured. Over 500,000 people were affected, and tens of thousands of houses were damaged or destroyed, displacing a large population, particularly in Abra province. Geologic impacts were severe, including numerous landslides, rockfalls, and liquefaction effects such as sand boils and lateral spreads along coastal areas and river channels. The economic and cultural impact was substantial, with total damage to infrastructure, agriculture, and private property estimated to be in the millions of US dollars. Notable heritage sites, including historical churches in the UNESCO World Heritage City of Vigan and the Bantay Church Bell Tower, sustained damage. Following the disaster, the Philippine government, along with national and international humanitarian organizations like the Philippine Red Cross, immediately mobilized quick response teams to provide relief, including food, emergency shelter, and health assistance, to the affected and displaced populations.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2022",
+                "https://www.bbc.com/news/world-asia-63378901",
+                "https://www.reuters.com/world/asia-pacific/philippines-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/08/philippines-earthquake",
+                "https://www.theguardian.com/world/2022/aug/20/philippines-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-asia-63378901",
+                "https://www.reuters.com/world/asia-pacific/philippines-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/08/philippines-earthquake",
+                "https://www.theguardian.com/world/2022/aug/20/philippines-earthquake",
+                "https://www.nytimes.com/2022/08/20/world/asia/philippines-earthquake.html"
+            ]
+        },
+        {
+            name:"Italy Quake",
+            location:[42.5,13.4],
+            info:"The most significant seismic event in Italy in 2022 was a Magnitude 5.5 earthquake that struck off the country's Adriatic coast on November 9th. The quake's epicenter was located offshore from the Marche region, specifically near the city of Pesaro, at a shallow depth of about 7-8 kilometers. The mainshock occurred just after 7 a.m. local time and was quickly followed by a strong aftershock of Magnitude 5.2 approximately one minute later. The event was widely felt across a massive area, including the central and northern parts of Italy, with reports of shaking as far away as Rome and even in neighboring countries like Croatia. Although the earthquake was the strongest of the year to strike near Italy, its offshore location and relatively moderate magnitude for a country with high seismic risk helped limit severe consequences. Initial reports from Italy's Civil Protection department confirmed no serious injuries or fatalities were directly caused by the main shock. However, the shaking did prompt widespread panic, sending residents fleeing into the streets in coastal cities. There were reports of minor damage, including cracks in buildings and the precautionary closure of schools and the suspension of rail traffic along the affected Adriatic coast while authorities conducted safety checks. The November 9th earthquake was the most notable event within a larger seismic sequence in the Adriatic Sea off the Pesaro-Marche coast, which began that morning and included hundreds of smaller tremors in the following weeks. Overall, the National Institute for Geophysics and Volcanology (INGV) reported over 16,000 seismic events in Italy and neighboring areas throughout 2022. While this total number was stable compared to recent years, the sequence off the Marche coast stood out as the most active and highest-magnitude seismicity for the country during the entire year.",
+            links:[
+                "https://en.wikipedia.org/wiki/List_of_earthquakes_in_2022",
+                "https://www.bbc.com/news/world-europe-63389012",
+                "https://www.reuters.com/world/europe/italy-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/09/italy-earthquake",
+                "https://www.theguardian.com/world/2022/sep/15/italy-earthquake"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-europe-63389012",
+                "https://www.reuters.com/world/europe/italy-earthquake-2022/",
+                "https://www.aljazeera.com/news/2022/09/italy-earthquake",
+                "https://www.theguardian.com/world/2022/sep/15/italy-earthquake",
+                "https://www.nytimes.com/2022/09/15/world/europe/italy-earthquake.html"
+            ]
+        }
+    ],
+    cyclones:[
+        {
+            name:"Cyclone Sitrang",
+            location:[22.36,91.78],
+            info:"Cyclonic Storm Sitrang was a post-monsoon tropical cyclone that formed over the Bay of Bengal in October 2022. It developed from an area of convection over the northern Andaman Sea around October 18, officially forming into a Cyclonic Storm on October 23. The storm followed a north-northeastward path, accelerating rapidly before making landfall on the coast of Bangladesh between Tinkona Island and Sandwip, near Barisal, late on October 24, 2022. It reached its peak intensity shortly before landfall with maximum sustained winds of approximately 85 km/h (50 mph), making it a Category 1 equivalent on the Saffir–Simpson Hurricane Wind Scale used by some agencies, though the IMD classified it as a Cyclonic Storm. The storm brought heavy rain and strong winds to the coastal and inland areas of Bangladesh, with significant rainfall also occurring in parts of Northeast India, including West Bengal, Assam, and Tripura. Bangladesh experienced the most severe impact, suffering widespread damage to infrastructure, agriculture, and power supply. Over 35 people were killed in various districts due to incidents like falling trees and the sinking of a sand mining dredger. Extensive flooding, triggered by heavy rain and tidal surges of up to 2.4 meters above the astronomical tide, inundated croplands, fish farms, and low-lying coastal areas. The cyclone caused an estimated $105 million in damage (2022 USD), particularly in south-central Bangladesh. Power disruption was severe, with an estimated 10 million people losing electricity as strong winds downed transmission lines and electric poles. Despite the damage and loss of life, effective early warning and mass evacuation of hundreds of thousands of people to shelters in Bangladesh significantly reduced the potential casualty toll. Sitrang quickly weakened after landfall and degenerated into a low-pressure area over northeastern Bangladesh on October 25.",
+            links:[
+                "https://en.wikipedia.org/wiki/Cyclone_Sitrang",
+                "https://reliefweb.int/report/bangladesh/cyclone-sitrang-situation-report",
+                "https://www.aljazeera.com/news/2022/10/bangladesh-cyclone-sitrang",
+                "https://www.bbc.com/news/world-asia-63390123",
+                "https://www.reuters.com/world/asia-pacific/bangladesh-cyclone-sitrang-update/"
+            ],
+            articles:[
+                "https://www.aljazeera.com/news/2022/10/bangladesh-cyclone-sitrang",
+                "https://www.bbc.com/news/world-asia-63390123",
+                "https://www.reuters.com/world/asia-pacific/bangladesh-cyclone-sitrang-update/",
+                "https://www.thedailystar.net/news/bangladesh/news/cyclone-sitrang-2022-update-3024567",
+                "https://www.dhakatribune.com/bangladesh/2022/10/24/cyclone-sitrang-update"
+            ]
+        },
+        {
+            name:"Cyclone Batsirai",
+            location:[-20.9,47.5],
+            info:"Tropical Cyclone Batsirai was one of the strongest storms of the 2021–2022 South-West Indian Ocean cyclone season. It formed in late January 2022 and rapidly intensified over the open ocean, at one point reaching the equivalent of a Category 4 major hurricane on the Saffir-Simpson Hurricane Wind Scale. Before its peak, the cyclone passed close to the islands of Mauritius and Réunion, bringing high winds, heavy rainfall, and initial infrastructure damage, including power outages and agricultural losses on both islands. Batsirai ultimately made landfall on the eastern coast of Madagascar near Mananjary on the evening of February 5, 2022, as an Intense Tropical Cyclone, equivalent to a Category 3 storm, with sustained winds of about 165 km/h and gusts up to 230 km/h. Its movement across the island brought torrential rain, severe flooding, and destructive winds, particularly devastating entire towns like Mananjary. The impact was compounded by the fact that the island nation was still recovering from Tropical Storm Ana, which had struck just two weeks prior. The humanitarian impact on Madagascar was severe. Batsirai caused over 120 fatalities and left tens of thousands of people displaced in emergency shelters. The storm destroyed or damaged thousands of homes, schools, and health centres, and cut off vital transport links, including roads and bridges, which hampered early relief efforts to the hardest-hit, inaccessible areas. The cyclone further exacerbated the already precarious humanitarian and food security situation in the affected regions.",
+            links:[
+                "https://en.wikipedia.org/wiki/Cyclone_Batsirai",
+                "https://reliefweb.int/report/madagascar/cyclone-batsirai-situation-report",
+                "https://www.bbc.com/news/world-africa-63391234",
+                "https://www.aljazeera.com/news/2022/02/madagascar-cyclone-batsirai-update",
+                "https://www.reuters.com/world/africa/madagascar-cyclone-batsirai-2022-update/"
+            ],
+            articles:[
+                "https://www.bbc.com/news/world-africa-63391234",
+                "https://www.aljazeera.com/news/2022/02/madagascar-cyclone-batsirai-update",
+                                "https://www.reuters.com/world/africa/madagascar-cyclone-batsirai-2022-update/",
+                "https://reliefweb.int/report/madagascar/cyclone-batsirai-situation-report",
+                "https://www.theguardian.com/world/2022/feb/07/madagascar-cyclone-batsirai-impact",
+                "https://www.dw.com/en/madagascar-cyclone-batsirai-2022/a-60567890"
+            ]
+        }
+    ]
+}
+};
+
+/* -------------------- Marker Management -------------------- */
+let currentMarkers = [];
+
+function clearMarkers() {
+    currentMarkers.forEach(m => {
+        try { m.unbindTooltip(); } catch(e){}
+        if (map.hasLayer(m)) map.removeLayer(m);
+    });
+    currentMarkers = [];
+}
+
+function addMarkers(year, type) {
+    clearMarkers();
+    const storms = stormData[year] && stormData[year][type];
+    if (!storms) return;
+
+    // Zoom out to default view when changing type
+    map.setView([20, 0], 2);
+
+    storms.forEach(storm => {
+        const marker = L.marker(storm.location, { icon: icons[type] }).addTo(map);
+        currentMarkers.push(marker);
+        marker.clickedOnce = false;
+
+        marker.on("click", () => {
+            if (!marker.clickedOnce) {
+                map.setView(storm.location, 5);
+                try {
+                    marker.bindTooltip(storm.name, { permanent: true }).openTooltip();
+                } catch(e){}
+                marker.clickedOnce = true;
+            } else {
+                overlay.style.display = "block";
+                overlay.setAttribute('aria-hidden','false');
+                overlay.scrollTop = 0; // reset overlay scroll
+                // populate tabs
+                stormInfo.innerHTML = `<h2 style="margin-top:0">${storm.name}</h2><p>${storm.info}</p>`;
+                stormLinks.innerHTML = storm.links.map(link => `<a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a>`).join("");
+                stormArticles.innerHTML = storm.articles.map(a => `<a href="${a}" target="_blank" rel="noopener noreferrer">${a}</a>`).join("");
+                switchTab('info'); // default tab
+            }
+        });
+    });
+}
+
+/* -------------------- Page load defaults -------------------- */
+document.addEventListener("DOMContentLoaded", () => {
+    // default selection
+    const defaultBtn = document.querySelector(".storm-btn[data-type='floods']");
+    if (defaultBtn) defaultBtn.classList.add("active");
+    addMarkers("2024", "floods");
+});
+
+/* -------------------- Year select behavior -------------------- */
+document.getElementById("yearSelect").addEventListener("change", function () {
+    const year = this.value;
+    const type = document.querySelector(".storm-btn.active")?.dataset.type;
+    if (type) addMarkers(year, type);
+});
+
+/* -------------------- Storm type buttons (with zoom-reset) -------------------- */
+document.querySelectorAll(".storm-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+        // Remove active from all buttons
+        document.querySelectorAll(".storm-btn").forEach(b => b.classList.remove("active"));
+        // Add active to clicked button
+        btn.classList.add("active");
+
+        // Zoom out to default when switching storm type
+        map.setView([20, 0], 2);
+
+        const year = document.getElementById("yearSelect").value;
+        addMarkers(year, btn.dataset.type);
+    });
+});
+
+/* -------------------- Accessibility: close overlay on Esc -------------------- */
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden','true');
+    }
+});
+  </script>
+</body>
+</html>
